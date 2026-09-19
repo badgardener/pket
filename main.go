@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
+
+	"pket/core"
 
 	"charm.land/lipgloss/v2"
 )
@@ -25,25 +26,31 @@ var (
 
 func printHelp() {
 	fmt.Println(Title.Render("pket") + " - Package Management Tool")
+
 	fmt.Println("\nUsage:")
-	fmt.Println("  " + Command.Render("pket") + Muted.Render("[--silent|--verbose]") +
-		" " + Argument.Render("<command>") + " " + Muted.Render("[arguments]"))
+	fmt.Println("  " + Command.Render("pket") + " " + Muted.Render("[--verbose]") + " " + Argument.Render("<command>") + " " + Muted.Render("[arguments]"))
+
 	fmt.Println("\nCommands:")
-	fmt.Println("  " + Command.Render("build") + "      Build a package.")
-	fmt.Println("  " + Command.Render("install") + "    Install a package.")
-	fmt.Println("  " + Command.Render("list") + "       List installed packages.")
-	fmt.Println("  " + Command.Render("info") + "       Info of the installed package.")
-	fmt.Println("  " + Command.Render("repair") + "     Repair an installed package.")
-	fmt.Println("  " + Command.Render("uninstall") + "   Remove an installed package.")
+	fmt.Println("  " + Command.Render("build") + " " + Argument.Render("<path>") + "       Build a package from a directory.")
+	fmt.Println("  " + Command.Render("install") + " " + Argument.Render("<package>") + " " + Argument.Render("<directory>"))
+	fmt.Println("                               Install a package to a directory.")
+	fmt.Println("  " + Command.Render("list") + "                  List installed packages.")
+	fmt.Println("  " + Command.Render("info") + " " + Argument.Render("<package>") + "       Show information about an installed package.")
+	fmt.Println("  " + Command.Render("repair") + " " + Argument.Render("<package>") + "     Repair an installed package.")
+	fmt.Println("  " + Command.Render("uninstall") + " " + Argument.Render("<package>") + "  Remove an installed package.")
+
 	fmt.Println("\nOptions:")
-	fmt.Println("  " + Flag.Render("--help") + "       Show help.")
-	fmt.Println("  " + Flag.Render("--version") + "    Show version.")
+	fmt.Println("  " + Flag.Render("--verbose") + "              Enable verbose output.")
+	fmt.Println("  " + Flag.Render("--help") + ", " + Flag.Render("-h") + "          Show this help message.")
+	fmt.Println("  " + Flag.Render("--version") + ", " + Flag.Render("-v") + "       Show version information.")
+
 	fmt.Println("\nExamples:")
-	fmt.Println("  " + Command.Render("pket build") + " " + Package.Render("."))
-	fmt.Println("  " + Command.Render("pket install") + " " + Package.Render("package.pkt"))
+	fmt.Println("  " + Command.Render("pket build") + " " + Package.Render("./my-package"))
+	fmt.Println("  " + Command.Render("pket install") + " " + Package.Render("./my-package.pkt") + " " + Package.Render("/opt/packages"))
 	fmt.Println("  " + Command.Render("pket list"))
-	fmt.Println("  " + Command.Render("pket repair") + " " + Package.Render("<package>"))
-	fmt.Println("  " + Command.Render("pket uninstall") + " " + Package.Render("<package>"))
+	fmt.Println("  " + Command.Render("pket info") + " " + Package.Render("my-package"))
+	fmt.Println("  " + Command.Render("pket repair") + " " + Package.Render("my-package"))
+	fmt.Println("  " + Command.Render("pket uninstall") + " " + Package.Render("my-package"))
 }
 
 func main() {
@@ -58,9 +65,14 @@ func main() {
 	cmd := argv[1]
 
 	verbose := cmd == "--verbose"
+	var callback core.Callback
 
 	if verbose {
 		argv = append([]string{argv[0]}, argv[2:]...)
+		argc--
+		callback = VerboseCallback{}
+	} else {
+		callback = NormalCallback{}
 	}
 
 	switch cmd {
@@ -70,7 +82,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("Building " + Package.Render(strings.Join(argv[2:], " ")) + "...")
+		core.Build(argv[2], callback)
 
 	case "install":
 		if argc < 4 {
@@ -78,9 +90,15 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("Installing " + Package.Render(strings.Join(argv[2:], " ")) + "...")
+		core.Install(argv[2], argv[3], callback)
 
 	case "list":
+		if verbose {
+			fmt.Println(Error.Render("Error:") + " Verbose not allowed here.")
+			os.Exit(1)
+		}
+
+		core.List()
 
 	case "repair":
 		if argc < 3 {
@@ -88,7 +106,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("Repairing " + Package.Render(strings.Join(argv[2:], " ")) + "...")
+		core.Repair(argv[2], callback)
 
 	case "info":
 		if argc < 3 {
@@ -96,13 +114,15 @@ func main() {
 			os.Exit(1)
 		}
 
+		core.Info(argv[2], verbose)
+
 	case "uninstall":
 		if argc < 3 {
 			fmt.Println(Error.Render("Error:") + " Package name is required.")
 			os.Exit(1)
 		}
 
-		fmt.Println("Uninstalling " + Package.Render(strings.Join(argv[2:], " ")) + "...")
+		core.Uninstall(argv[2], callback)
 
 	case "--help", "-h":
 		printHelp()
