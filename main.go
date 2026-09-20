@@ -75,6 +75,13 @@ func main() {
 		callback = NormalCallback{}
 	}
 
+	if argc == 1 {
+		fmt.Println("pket is " + Success.Render("installed.") + " Use " + Info.Render("pket --help") + " for usage.")
+		os.Exit(1)
+	}
+
+	cmd = argv[1]
+
 	switch cmd {
 	case "build":
 		if argc < 3 {

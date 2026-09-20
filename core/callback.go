@@ -8,7 +8,6 @@ type Callback interface {
 
 	Warn(msg string)
 	Error(msg string)
-	Fatal(msg string)
 
 	Prompt(msg string, def bool) bool
 }

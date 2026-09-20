@@ -27,10 +27,6 @@ func (l BaseCallback) Error(msg string) {
 	fmt.Println(Error.Render("[ ERROR ]") + " " + msg)
 }
 
-func (l BaseCallback) Fatal(msg string) {
-	fmt.Println(Error.Render("[ FATAL ] " + msg))
-}
-
 func (l BaseCallback) Prompt(msg string, def bool) bool {
 	token := " [y/N] "
 	if def {
