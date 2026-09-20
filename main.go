@@ -9,7 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-const VERSION = "26.1.2"
+const VERSION = "26.1.3"
 
 var (
 	Success  = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1"))
@@ -107,14 +107,6 @@ func main() {
 
 		core.List()
 
-	case "repair":
-		if argc < 3 {
-			fmt.Println(Error.Render("Error:") + " Package name is required.")
-			os.Exit(1)
-		}
-
-		core.Repair(argv[2], callback)
-
 	case "info":
 		if argc < 3 {
 			fmt.Println(Error.Render("Error:") + " Package name is required.")
@@ -122,6 +114,14 @@ func main() {
 		}
 
 		core.Info(argv[2], verbose)
+
+	case "repair":
+		if argc < 3 {
+			fmt.Println(Error.Render("Error:") + " Package name is required.")
+			os.Exit(1)
+		}
+
+		core.Repair(argv[2], callback)
 
 	case "uninstall":
 		if argc < 3 {
