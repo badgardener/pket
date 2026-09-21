@@ -1,8 +1,8 @@
 [package]
-name = "pket"
-pack = "badgardener.pket"
-version = "26.1.3"
-description = "A simple application packager, installer and manager."
+name = "pket-example"
+pack = "badgardener.pket.example"
+version = "1.0.0"
+description = "A simple application packager, installer and manager (example)."
 authors = ["badgardener"]
 
 [files]
@@ -13,6 +13,6 @@ assets = ["../LICENSE", "../README.md"] # Goes inside @res/pket-assets/*
 path = "bin/pket-linux-example.sh"
 link = "pket"
 
-# [install]
+[install]
 # preinstall = "@res/bin/pket.exe --version"
-# postinstall = "pket --version"
+postinstall = "pket --version"

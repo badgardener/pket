@@ -1,0 +1,18 @@
+[package]
+name = "pket"
+pack = "badgardener.pket"
+version = "26.1.4"
+description = "A simple application packager, installer and manager."
+authors = ["badgardener"]
+
+[files]
+base = "build"
+assets = ["LICENSE", "README.md"]
+
+[[executable]]
+path = "pket"
+link = "pket"
+
+[install]
+# preinstall = "@res/pket --version"
+postinstall = "pket --version"

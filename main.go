@@ -9,7 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-const VERSION = "26.1.3"
+const VERSION = "26.1.4"
 
 var (
 	Success  = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1"))
@@ -31,16 +31,15 @@ func printHelp() {
 	fmt.Println("  " + Command.Render("pket") + " " + Muted.Render("[--verbose]") + " " + Argument.Render("<command>") + " " + Muted.Render("[arguments]"))
 
 	fmt.Println("\nCommands:")
-	fmt.Println("  " + Command.Render("build") + " " + Argument.Render("<path>") + "       Build a package from a directory.")
-	fmt.Println("  " + Command.Render("install") + " " + Argument.Render("<package>") + " " + Argument.Render("<directory>"))
-	fmt.Println("                               Install a package to a directory.")
-	fmt.Println("  " + Command.Render("list") + "                  List installed packages.")
+	fmt.Println("  " + Command.Render("build") + " " + Argument.Render("<path>") + "         Build a package from a directory.")
+	fmt.Println("  " + Command.Render("install") + " " + Argument.Render("<package>") + "    Install a package to a directory.")
+	fmt.Println("  " + Command.Render("list") + "                 List installed packages.")
 	fmt.Println("  " + Command.Render("info") + " " + Argument.Render("<package>") + "       Show information about an installed package.")
 	fmt.Println("  " + Command.Render("repair") + " " + Argument.Render("<package>") + "     Repair an installed package.")
 	fmt.Println("  " + Command.Render("uninstall") + " " + Argument.Render("<package>") + "  Remove an installed package.")
 
 	fmt.Println("\nOptions:")
-	fmt.Println("  " + Flag.Render("--verbose") + "              Enable verbose output.")
+	fmt.Println("  " + Flag.Render("--verbose") + "           Enable verbose output.")
 	fmt.Println("  " + Flag.Render("--help") + ", " + Flag.Render("-h") + "          Show this help message.")
 	fmt.Println("  " + Flag.Render("--version") + ", " + Flag.Render("-v") + "       Show version information.")
 
@@ -84,20 +83,20 @@ func main() {
 
 	switch cmd {
 	case "build":
-		if argc < 3 {
-			fmt.Println(Error.Render("Error:") + " Path is required.")
+		if argc != 3 {
+			fmt.Println(Error.Render("Error:") + " Path is required and argument count should be exactly 2.")
 			os.Exit(1)
 		}
 
 		core.Build(argv[2], callback)
 
 	case "install":
-		if argc < 4 {
-			fmt.Println(Error.Render("Error:") + " Not enough arguments.")
+		if argc != 3 {
+			fmt.Println(Error.Render("Error:") + " Path is required and argument count should be exactly 2.")
 			os.Exit(1)
 		}
 
-		core.Install(argv[2], argv[3], callback)
+		core.Install(argv[2], callback)
 
 	case "list":
 		if verbose {
@@ -108,24 +107,29 @@ func main() {
 		core.List()
 
 	case "info":
-		if argc < 3 {
-			fmt.Println(Error.Render("Error:") + " Package name is required.")
+		if verbose {
+			fmt.Println(Error.Render("Error:") + " Verbose not allowed here.")
 			os.Exit(1)
 		}
 
-		core.Info(argv[2], verbose)
+		if argc != 3 {
+			fmt.Println(Error.Render("Error:") + " Package name is required and argument count should be exactly 2.")
+			os.Exit(1)
+		}
+
+		core.Info(argv[2])
 
 	case "repair":
-		if argc < 3 {
-			fmt.Println(Error.Render("Error:") + " Package name is required.")
+		if argc != 3 {
+			fmt.Println(Error.Render("Error:") + " Package name is required and argument count should be exactly 2.")
 			os.Exit(1)
 		}
 
 		core.Repair(argv[2], callback)
 
 	case "uninstall":
-		if argc < 3 {
-			fmt.Println(Error.Render("Error:") + " Package name is required.")
+		if argc != 3 {
+			fmt.Println(Error.Render("Error:") + " Package name is required and argument count should be exactly 2.")
 			os.Exit(1)
 		}
 
