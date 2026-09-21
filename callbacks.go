@@ -12,19 +12,19 @@ type BaseCallback struct{}
 func (l BaseCallback) Log(msg string) {}
 
 func (l BaseCallback) Info(msg string) {
-	fmt.Println(Info.Render("[ INFO  ]") + " " + msg)
+	fmt.Println(Info.Render("[ INFO  ] " + msg))
 }
 
 func (l BaseCallback) Success(msg string) {
-	fmt.Println(Success.Render("[SUCCESS]") + " " + msg)
+	fmt.Println(Success.Render("[SUCCESS] " + msg))
 }
 
 func (l BaseCallback) Warn(msg string) {
-	fmt.Println(Warning.Render("[WARNING]") + " " + msg)
+	fmt.Println(Warning.Render("[WARNING] " + msg))
 }
 
 func (l BaseCallback) Error(msg string) {
-	fmt.Println(Error.Render("[ ERROR ]") + " " + msg)
+	fmt.Println(Error.Render("[ ERROR ] " + msg))
 }
 
 func (l BaseCallback) Prompt(msg string, def bool) bool {
@@ -33,7 +33,7 @@ func (l BaseCallback) Prompt(msg string, def bool) bool {
 		token = " [Y/n] "
 	}
 
-	fmt.Print(Info.Render(msg) + token)
+	fmt.Print(Info.Render(msg + token))
 
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
