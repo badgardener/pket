@@ -3,15 +3,12 @@ package core
 import (
 	"archive/tar"
 	"compress/gzip"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -26,20 +23,7 @@ func Install(pack string, callback Callback) {
 		return
 	}
 
-	var suffix string
-
-	switch runtime.GOOS {
-	case "windows":
-		suffix = "AppData/Roaming/pket"
-
-	case "linux":
-		suffix = ".local/share/pket"
-
-	case "darwin":
-		suffix = "Library/Application Support/pket"
-	}
-
-	app_home_dir := filepath.Join(home_dir, suffix)
+	app_home_dir := filepath.Join(home_dir, Package_data_suffix())
 	callback.Log("Detected app home dir: " + app_home_dir)
 
 	callback.Log("Checking home dir...")
@@ -84,7 +68,7 @@ func Install(pack string, callback Callback) {
 	file, err = os.Stat(pack)
 
 	if err != nil {
-		callback.Error("Target file fat does not exists.")
+		callback.Error("Target file does not exist.")
 		return
 	}
 
@@ -95,9 +79,8 @@ func Install(pack string, callback Callback) {
 	}
 
 	callback.Log("Target file exists.")
-	temp := filepath.Join(os.TempDir(), generateRandomValue([]string{}))
 	callback.Log("Making temporary dir...")
-	err = os.MkdirAll(temp, 0755)
+	temp, err := os.MkdirTemp("", "pket-install-")
 
 	if err != nil {
 		callback.Error("Cannot create temporary directory.")
@@ -596,6 +579,19 @@ func remove_external_files(install_dir string, call Callback) error {
 		if path == "" {
 			continue
 		}
+		if !filepath.IsAbs(path) {
+			return fmt.Errorf("refusing to remove non-absolute external file: %s", path)
+		}
+		info, statErr := os.Lstat(path)
+		if os.IsNotExist(statErr) {
+			continue
+		}
+		if statErr != nil {
+			return statErr
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			return fmt.Errorf("refusing to remove non-symlink external file: %s", path)
+		}
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -756,13 +752,4 @@ func make_install_hash_entries(temp string) ([]HashEntry, error) {
 	}
 
 	return hash_entries, nil
-}
-
-func generateRandomValue(ignore []string) string {
-	sortedIgnore := make([]string, len(ignore))
-	copy(sortedIgnore, ignore)
-	sort.Strings(sortedIgnore)
-	combined := strings.Join(sortedIgnore, "")
-	hashBytes := sha256.Sum256([]byte(combined))
-	return hex.EncodeToString(hashBytes[:])
 }

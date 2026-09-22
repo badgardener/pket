@@ -56,6 +56,15 @@ func (c BuilderConfig) Validate() error {
 		return fmt.Errorf("package.pack is required")
 	}
 
+	for field, value := range map[string]string{
+		"package.name": c.Package.Name,
+		"package.pack": c.Package.Pack,
+	} {
+		if value == "." || value == ".." || filepath.Base(value) != value || strings.ContainsAny(value, `/\\`) {
+			return fmt.Errorf("%s must be a single path component", field)
+		}
+	}
+
 	if c.Package.Version == "" {
 		return fmt.Errorf("package.version is required")
 	}
@@ -523,6 +532,13 @@ func make_tar(source_dir string, output_file string, call Callback) error {
 		header, err := tar.FileInfoHeader(info, "")
 		if err != nil {
 			return fmt.Errorf("failed to create tar header for %s: %w", relative, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			linkname, err := os.Readlink(path)
+			if err != nil {
+				return fmt.Errorf("failed to read symlink target for %s: %w", relative, err)
+			}
+			header.Linkname = linkname
 		}
 		header.Name = relative
 		if err := tar_writer.WriteHeader(header); err != nil {

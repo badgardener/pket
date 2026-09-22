@@ -14,14 +14,14 @@ func printHelp() {
 	fmt.Println(ui.Title.Render("pket") + " - Package Management Tool")
 
 	fmt.Println("\nUsage:")
-	fmt.Println("  " + ui.Command.Render("pket") + " " + ui.Muted.Render("[--verbose]") + " " + ui.Argument.Render("<ui.Command>") + " " + ui.Muted.Render("[ui.Arguments]"))
+	fmt.Println("  " + ui.Command.Render("pket") + " " + ui.Muted.Render("[--verbose]") + " " + ui.Argument.Render("<command>") + " " + ui.Muted.Render("[arguments]"))
 
-	fmt.Println("\nui.Commands:")
+	fmt.Println("\nCommands:")
 	fmt.Println("  " + ui.Command.Render("build") + " " + ui.Argument.Render("<path>") + "         Build a package from a directory.")
 	fmt.Println("  " + ui.Command.Render("install") + " " + ui.Argument.Render("<package>") + "    Install a package to a directory.")
 	fmt.Println("  " + ui.Command.Render("list") + "                 List installed packages.")
-	fmt.Println("  " + ui.Command.Render("info") + " " + ui.Argument.Render("<package>") + "       Show information about an installed ui.Package.")
-	fmt.Println("  " + ui.Command.Render("uninstall") + " " + ui.Argument.Render("<package>") + "  Remove an installed ui.Package.")
+	fmt.Println("  " + ui.Command.Render("info") + " " + ui.Argument.Render("<package>") + "       Show information about an installed package.")
+	fmt.Println("  " + ui.Command.Render("uninstall") + " " + ui.Argument.Render("<package>") + "  Remove an installed package.")
 
 	fmt.Println("\nOptions:")
 	fmt.Println("  " + ui.Flag.Render("--verbose") + "           Enable verbose output.")
@@ -119,7 +119,7 @@ func main() {
 		fmt.Println(ui.Title.Render("pket") + " version " + ui.Info.Render(VERSION))
 
 	default:
-		fmt.Println(ui.Error.Render("Error:") + " invalid ui.Command " + ui.Argument.Render("'"+cmd+"'") + ".")
+		fmt.Println(ui.Error.Render("Error:") + " invalid command " + ui.Argument.Render("'"+cmd+"'") + ".")
 		fmt.Println("Use " + ui.Info.Render("pket --help") + " for usage.")
 		os.Exit(1)
 	}
