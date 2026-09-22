@@ -8,7 +8,7 @@ import (
 	"pket/ui"
 )
 
-const VERSION = "26.1.8"
+const VERSION = "26.1.9"
 
 func printHelp() {
 	fmt.Println(ui.Title.Render("pket") + " - Package Management Tool")

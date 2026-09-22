@@ -2,7 +2,6 @@ package core
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"crypto/sha512"
 	"fmt"
 	"io"
@@ -15,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
+	"github.com/klauspost/pgzip"
 )
 
 type BuilderConfig struct {
@@ -487,8 +487,15 @@ func make_tar(source_dir string, output_file string, call Callback) error {
 		file.Close()
 	}()
 
-	call.Log("Creating gzip writer...")
-	gzip_writer := gzip.NewWriter(file)
+	call.Log("Creating parallel gzip writer...")
+	gzip_writer := pgzip.NewWriter(file)
+	workers := runtime.NumCPU() - 1
+	if workers < 1 {
+		workers = 1
+	}
+	if err := gzip_writer.SetConcurrency(1<<20, workers); err != nil {
+		return fmt.Errorf("failed to configure gzip workers: %w", err)
+	}
 	defer func() {
 		call.Log("Closing gzip writer...")
 		gzip_writer.Close()
