@@ -9,7 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-const VERSION = "26.1.5"
+const VERSION = "26.1.6"
 
 var (
 	Success  = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1"))

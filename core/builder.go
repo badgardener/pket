@@ -243,8 +243,20 @@ func build_packet(base_path string, config BuilderConfig, call Callback) {
 	}
 
 	call.Log("Temporary directory structure created.")
+	payload_path := filepath.Join(temp_path, "payload")
+	if err := os.MkdirAll(payload_path, 0755); err != nil {
+		call.Error("Cannot create payload directory: " + err.Error())
+		return
+	}
+
 	call.Log("Creating final metadata file...")
-	manifest_path := filepath.Join(temp_path, "pket-config.toml")
+	manifest_dir := filepath.Join(temp_path, "pket-manifest")
+	if err := os.MkdirAll(manifest_dir, 0755); err != nil {
+		call.Error("Cannot create manifest directory: " + err.Error())
+		return
+	}
+
+	manifest_path := filepath.Join(manifest_dir, "pket-config.toml")
 	file, err := os.Create(manifest_path)
 
 	if err != nil {
@@ -279,29 +291,34 @@ func build_packet(base_path string, config BuilderConfig, call Callback) {
 	}
 
 	call.Log(fmt.Sprintf("Found %d base entries.", len(entries)))
-	files_to_pack := []string{}
-	assets_to_pack := []string{}
 
 	for _, f := range entries {
-		target := filepath.Join(base_path, config.Files.Base, f.Name())
-		files_to_pack = append(files_to_pack, target)
+		source := filepath.Join(base_include, f.Name())
+		target := filepath.Join(payload_path, f.Name())
+		if err := copyPath(source, target, call); err != nil {
+			call.Error("Cannot copy base payload: " + err.Error())
+			return
+		}
 	}
 
 	call.Log(fmt.Sprintf("Processing %d asset(s)...", len(config.Files.Assets)))
 
 	for _, f := range config.Files.Assets {
-		target := filepath.Join(base_path, f)
-		assets_to_pack = append(assets_to_pack, target)
+		source := filepath.Join(base_path, f)
+		target := filepath.Join(payload_path, "pket-assets", filepath.Base(filepath.Clean(source)))
+		if err := copyPath(source, target, call); err != nil {
+			call.Error("Cannot copy asset payload: " + err.Error())
+			return
+		}
 	}
 
 	call.Info("Write SHA-512 sums...")
-	shafile := []string{filepath.Join(temp_path, "sha-512.sums")}
+	shafile := filepath.Join(manifest_dir, "sha-512.sums")
 	call.Log("Creating SHA-512 output file...")
-	hash_file, err := os.Create(shafile[0])
+	hash_file, err := os.Create(shafile)
 
 	if err != nil {
 		call.Warn("Cannot create hash file: " + err.Error())
-		shafile = []string{}
 
 		if !call.Prompt("Continue?", true) {
 			return
@@ -309,88 +326,35 @@ func build_packet(base_path string, config BuilderConfig, call Callback) {
 	} else {
 		hash_file.Close()
 		call.Log("SHA-512 output file created.")
-
 		call.Log("Calculating SHA-512 hash for payload...")
-
 		var hash_entries []HashEntry
 
-		for _, target := range files_to_pack {
-			target_name := filepath.Base(filepath.Clean(target))
-
-			err := filepath.Walk(target, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				if !info.Mode().IsRegular() {
-					return nil
-				}
-
-				relative, err := filepath.Rel(target, path)
-				if err != nil {
-					return err
-				}
-
-				archive_path := filepath.Join(target_name, relative)
-
-				if relative == "." {
-					archive_path = target_name
-				}
-
-				hash_entries = append(hash_entries, HashEntry{
-					source: path,
-					target: filepath.ToSlash(archive_path),
-				})
-
-				return nil
-			})
-
+		err := filepath.Walk(payload_path, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				call.Warn("Cannot prepare hash input: " + err.Error())
-				if !call.Prompt("Continue?", true) {
-					return
-				}
-				break
+				return err
 			}
-		}
 
-		for _, target := range assets_to_pack {
-			target_name := filepath.Base(filepath.Clean(target))
-
-			err := filepath.Walk(target, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				if !info.Mode().IsRegular() {
-					return nil
-				}
-
-				relative, err := filepath.Rel(target, path)
-				if err != nil {
-					return err
-				}
-
-				archive_path := filepath.Join("pket-assets", target_name, relative)
-
-				if relative == "." {
-					archive_path = filepath.Join("pket-assets", target_name)
-				}
-
-				hash_entries = append(hash_entries, HashEntry{
-					source: path,
-					target: filepath.ToSlash(archive_path),
-				})
-
+			if !info.Mode().IsRegular() {
 				return nil
+			}
+
+			relative, err := filepath.Rel(payload_path, path)
+			if err != nil {
+				return err
+			}
+
+			hash_entries = append(hash_entries, HashEntry{
+				source: path,
+				target: filepath.ToSlash(relative),
 			})
 
-			if err != nil {
-				call.Warn("Cannot prepare asset hash input: " + err.Error())
-				if !call.Prompt("Continue?", true) {
-					return
-				}
-				break
+			return nil
+		})
+
+		if err != nil {
+			call.Warn("Cannot prepare hash input: " + err.Error())
+			if !call.Prompt("Continue?", true) {
+				return
 			}
 		}
 
@@ -404,7 +368,7 @@ func build_packet(base_path string, config BuilderConfig, call Callback) {
 			}
 		} else {
 			call.Log("SHA-512 calculation completed.")
-			err = os.WriteFile(shafile[0], []byte(hash+"\n"), 0644)
+			err = os.WriteFile(shafile, []byte(hash+"\n"), 0644)
 			if err != nil {
 				call.Warn("Cannot write hash: " + err.Error())
 
@@ -418,10 +382,10 @@ func build_packet(base_path string, config BuilderConfig, call Callback) {
 	}
 
 	call.Info("Building .pkt...")
-	output_packet := filepath.Join(temp_path, config.Package.Pack+"-"+config.Package.Version+".pkt")
+	output_packet := filepath.Join(base_path, config.Package.Pack+"-"+config.Package.Version+".pkt")
 	call.Log("Creating package archive: " + output_packet)
 
-	if err := make_tar(files_to_pack, assets_to_pack, append(shafile, manifest_path), output_packet, call); err != nil {
+	if err := make_tar(temp_path, output_packet, call); err != nil {
 		call.Error("Cannot make packet: " + err.Error())
 		return
 	}
@@ -430,9 +394,74 @@ func build_packet(base_path string, config BuilderConfig, call Callback) {
 	call.Success("Package built successfully.")
 }
 
-func make_tar(target_files_or_folders_base []string,
-	target_files_or_folders_assets []string, manifest_files []string,
-	output_file string, call Callback) error {
+func copyPath(source string, target string, call Callback) error {
+	info, err := os.Lstat(source)
+	if err != nil {
+		return fmt.Errorf("failed to stat %s: %w", source, err)
+	}
+
+	if info.Mode()&os.ModeSymlink != 0 {
+		link, err := os.Readlink(source)
+		if err != nil {
+			return fmt.Errorf("failed to read symbolic link %s: %w", source, err)
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return fmt.Errorf("failed to create parent directory for %s: %w", target, err)
+		}
+		return os.Symlink(link, target)
+	}
+
+	if info.IsDir() {
+		if err := os.MkdirAll(target, info.Mode().Perm()); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", target, err)
+		}
+
+		entries, err := os.ReadDir(source)
+		if err != nil {
+			return fmt.Errorf("failed to read directory %s: %w", source, err)
+		}
+
+		for _, entry := range entries {
+			if err := copyPath(filepath.Join(source, entry.Name()), filepath.Join(target, entry.Name()), call); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("unsupported payload entry type: %s", source)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+		return fmt.Errorf("failed to create parent directory for %s: %w", target, err)
+	}
+
+	input, err := os.Open(source)
+	if err != nil {
+		return fmt.Errorf("failed to open %s: %w", source, err)
+	}
+	defer input.Close()
+
+	output, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
+	if err != nil {
+		return fmt.Errorf("failed to create %s: %w", target, err)
+	}
+
+	_, copyErr := io.Copy(output, input)
+	closeErr := output.Close()
+	if copyErr != nil {
+		return fmt.Errorf("failed to copy %s: %w", source, copyErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("failed to close %s: %w", target, closeErr)
+	}
+
+	call.Log("Copied payload: " + filepath.ToSlash(target))
+	return nil
+}
+
+func make_tar(source_dir string, output_file string, call Callback) error {
 	call.Log("Creating archive output directory...")
 
 	if err := os.MkdirAll(filepath.Dir(output_file), 0755); err != nil {
@@ -463,106 +492,61 @@ func make_tar(target_files_or_folders_base []string,
 		tar_writer.Close()
 	}()
 
-	add_targets := func(targets []string, archive_prefix string) error {
-		for _, target := range targets {
-			target_path, err := filepath.Abs(target)
+	root, err := filepath.Abs(source_dir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve source directory: %w", err)
+	}
+
+	output, err := filepath.Abs(output_file)
+	if err != nil {
+		return fmt.Errorf("failed to resolve output file: %w", err)
+	}
+
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == output {
+			return nil
+		}
+
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path: %w", err)
+		}
+		if relative == "." {
+			return nil
+		}
+		relative = filepath.ToSlash(relative)
+		call.Log("Adding '" + relative + "'...")
+
+		header, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return fmt.Errorf("failed to create tar header for %s: %w", relative, err)
+		}
+		header.Name = relative
+		if err := tar_writer.WriteHeader(header); err != nil {
+			return fmt.Errorf("failed to write tar header for %s: %w", relative, err)
+		}
+
+		if info.Mode().IsRegular() {
+			src, err := os.Open(path)
 			if err != nil {
-				return fmt.Errorf("failed to resolve %s: %w", target, err)
+				return fmt.Errorf("failed to open %s: %w", path, err)
 			}
-
-			call.Log("Reading archive target: " + target_path)
-
-			_, err = os.Stat(target_path)
-			if err != nil {
-				return fmt.Errorf("failed to stat %s: %w", target_path, err)
+			_, copyErr := io.Copy(tar_writer, src)
+			closeErr := src.Close()
+			if copyErr != nil {
+				return fmt.Errorf("failed to write %s: %w", relative, copyErr)
 			}
-
-			target_name := filepath.Base(filepath.Clean(target_path))
-
-			err = filepath.Walk(target_path, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				relative, err := filepath.Rel(target_path, path)
-				if err != nil {
-					return fmt.Errorf("failed to get relative path: %w", err)
-				}
-
-				if relative == "." {
-					relative = target_name
-				} else {
-					relative = filepath.Join(target_name, relative)
-				}
-
-				if archive_prefix != "" {
-					relative = filepath.Join(archive_prefix, relative)
-				}
-
-				relative = filepath.ToSlash(relative)
-
-				call.Log("Adding '" + relative + "'...")
-
-				header, err := tar.FileInfoHeader(info, "")
-				if err != nil {
-					return fmt.Errorf("failed to create tar header for %s: %w", relative, err)
-				}
-
-				header.Name = relative
-
-				if err := tar_writer.WriteHeader(header); err != nil {
-					return fmt.Errorf("failed to write tar header for %s: %w", relative, err)
-				}
-
-				if info.Mode().IsRegular() {
-					call.Log("Opening archive source file: " + path)
-
-					src, err := os.Open(path)
-					if err != nil {
-						return fmt.Errorf("failed to open %s: %w", path, err)
-					}
-
-					_, copy_err := io.Copy(tar_writer, src)
-					close_err := src.Close()
-
-					if copy_err != nil {
-						return fmt.Errorf("failed to write %s: %w", relative, copy_err)
-					}
-
-					if close_err != nil {
-						return fmt.Errorf("failed to close %s: %w", path, close_err)
-					}
-				}
-
-				call.Log("Finished archive entry: " + relative)
-				return nil
-			})
-
-			if err != nil {
-				return err
+			if closeErr != nil {
+				return fmt.Errorf("failed to close %s: %w", path, closeErr)
 			}
 		}
 
+		call.Log("Finished archive entry: " + relative)
 		return nil
-	}
-
-	call.Log("Adding base files and folders...")
-	if err := add_targets(target_files_or_folders_base, ""); err != nil {
-		return err
-	}
-
-	call.Log("Adding asset files and folders...")
-	if err := add_targets(target_files_or_folders_assets, "pket-assets"); err != nil {
-		return err
-	}
-
-	call.Log("Adding manifest files...")
-	if err := add_targets(manifest_files, "pket-manifest"); err != nil {
-		return err
-	}
-
-	call.Log("Finished creating archive.")
-	return nil
+	})
 }
 
 type HashEntry struct {
@@ -582,6 +566,9 @@ func Sha512Files(entries []HashEntry, call Callback) (string, error) {
 	}
 
 	workers := runtime.NumCPU() - 1
+	if workers < 1 {
+		workers = 1
+	}
 	jobs := make(chan int, workers)
 	results := make(chan result, len(entries))
 	var wg sync.WaitGroup
