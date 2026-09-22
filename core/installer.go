@@ -383,6 +383,13 @@ func install_pack(pack string, call Callback, temp string, app_home_dir string) 
 		return
 	}
 
+	call.Log("Applying executable permissions...")
+	if err := make_executables_executable(config.Executables, staging_dir, call); err != nil {
+		call.Error("Cannot apply executable permissions: " + err.Error())
+		os.RemoveAll(staging_dir)
+		return
+	}
+
 	backup_dir := ""
 	if installed {
 		backup_dir = filepath.Join(app_home_dir, "."+uid+".previous")
@@ -459,6 +466,27 @@ func install_pack(pack string, call Callback, temp string, app_home_dir string) 
 			}
 		}
 	}
+}
+
+func make_executables_executable(executables []ExecutableConfig, install_dir string, call Callback) error {
+	for _, executable := range executables {
+		source := strings.ReplaceAll(strings.TrimSpace(executable.Path), "@res", filepath.Join(install_dir, "payload"))
+		info, err := os.Stat(source)
+		if err != nil {
+			return fmt.Errorf("cannot inspect executable %s: %w", source, err)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("executable source is not a regular file: %s", source)
+		}
+
+		mode := info.Mode().Perm() | 0111
+		if err := os.Chmod(source, mode); err != nil {
+			return fmt.Errorf("cannot make executable %s executable: %w", source, err)
+		}
+		call.Log("Set executable permissions: " + source)
+	}
+
+	return nil
 }
 
 func create_executable_links(executables []ExecutableConfig, install_dir string, app_home_dir string, call Callback) ([]string, error) {

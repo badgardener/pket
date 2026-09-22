@@ -11,8 +11,8 @@ assets = ["../LICENSE", "../README.md"] # Goes inside @res/pket-assets/*
 
 [[executable]]
 path = "bin/pket-linux-example.sh"
-link = "pket"
+link = "pket-example"
 
 [install]
 # preinstall = "@res/bin/pket.exe --version"
-postinstall = "pket --version"
+postinstall = "pket-example"
