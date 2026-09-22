@@ -2,7 +2,6 @@ package core
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/klauspost/pgzip"
 )
 
 func Install(pack string, callback Callback) {
@@ -80,7 +80,7 @@ func Install(pack string, callback Callback) {
 
 	callback.Log("Target file exists.")
 	callback.Log("Making temporary dir...")
-	temp, err := os.MkdirTemp("", "pket-install-")
+	temp, err := os.MkdirTemp(app_home_dir, ".pket-install-")
 
 	if err != nil {
 		callback.Error("Cannot create temporary directory.")
@@ -114,7 +114,8 @@ func extract_tar(pack string, dir string, call Callback) error {
 
 	call.Log(fmt.Sprintf("Opening package archive: %s (%d bytes).", pack, stat.Size()))
 
-	gzipReader, err := gzip.NewReader(file)
+	workers := max(runtime.NumCPU()-1, 1)
+	gzipReader, err := pgzip.NewReaderN(file, 1<<20, workers)
 	if err != nil {
 		return fmt.Errorf("cannot open gzip archive: %w", err)
 	}
@@ -212,7 +213,9 @@ func extract_tar(pack string, dir string, call Callback) error {
 		}
 
 		count++
-		call.Log(fmt.Sprintf("Extracted: %s", filepath.ToSlash(name)))
+		if count%1000 == 0 {
+			call.Log(fmt.Sprintf("Extracted %d archive entries...", count))
+		}
 	}
 
 	call.Success(fmt.Sprintf("Extracted %d archive entries.", count))
@@ -347,29 +350,17 @@ func install_pack(pack string, call Callback, temp string, app_home_dir string) 
 		call.Error("Cannot clear installation staging directory: " + err.Error())
 		return
 	}
-	if err := os.MkdirAll(staging_dir, 0755); err != nil {
-		call.Error("Cannot create installation staging directory: " + err.Error())
-		return
-	}
-
-	call.Log("Copying verified package contents...")
-	if err := copyPath(temp, staging_dir, call); err != nil {
-		call.Error("Cannot copy package contents: " + err.Error())
-		os.RemoveAll(staging_dir)
-		return
-	}
-
-	staged_package_file := filepath.Join(staging_dir, package_name+".pkt")
+	staged_package_file := filepath.Join(temp, package_name+".pkt")
 	if err := copy_file(pack, staged_package_file, call); err != nil {
 		call.Error("Cannot save package archive: " + err.Error())
-		os.RemoveAll(staging_dir)
+		os.RemoveAll(temp)
 		return
 	}
 
 	call.Log("Applying executable permissions...")
-	if err := make_executables_executable(config.Executables, staging_dir, call); err != nil {
+	if err := make_executables_executable(config.Executables, temp, call); err != nil {
 		call.Error("Cannot apply executable permissions: " + err.Error())
-		os.RemoveAll(staging_dir)
+		os.RemoveAll(temp)
 		return
 	}
 
@@ -379,14 +370,25 @@ func install_pack(pack string, call Callback, temp string, app_home_dir string) 
 		call.Log("Moving existing installation to backup: " + backup_dir)
 		if err := os.RemoveAll(backup_dir); err != nil {
 			call.Error("Cannot clear update backup directory: " + err.Error())
-			os.RemoveAll(staging_dir)
+			os.RemoveAll(temp)
 			return
 		}
 		if err := os.Rename(install_dir, backup_dir); err != nil {
 			call.Error("Cannot prepare package update: " + err.Error())
-			os.RemoveAll(staging_dir)
+			os.RemoveAll(temp)
 			return
 		}
+	}
+
+	call.Log("Preparing verified package for activation...")
+	if err := os.Rename(temp, staging_dir); err != nil {
+		call.Error("Cannot prepare installation staging directory: " + err.Error())
+		if installed {
+			if restoreErr := os.Rename(backup_dir, install_dir); restoreErr != nil {
+				call.Error("Cannot restore previous installation: " + restoreErr.Error())
+			}
+		}
+		return
 	}
 
 	call.Log("Activating installation directory...")
@@ -643,6 +645,16 @@ func run_install_command(command string, install_dir string, call Callback) erro
 }
 
 func copy_file(source string, target string, call Callback) error {
+	if info, err := os.Stat(source); err == nil && info.Mode().IsRegular() {
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return err
+		}
+		if err := os.Link(source, target); err == nil {
+			call.Log("Linked package archive: " + filepath.ToSlash(target))
+			return nil
+		}
+	}
+
 	input, err := os.Open(source)
 	if err != nil {
 		return err
