@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -21,7 +20,7 @@ func List() {
 		return
 	}
 
-	app_home_dir := filepath.Join(home_dir, package_data_suffix())
+	app_home_dir := filepath.Join(home_dir, core.Package_data_suffix())
 	entries, err := os.ReadDir(app_home_dir)
 	if os.IsNotExist(err) {
 		fmt.Println(ui.Warning.Render("No packages installed."))
@@ -90,17 +89,6 @@ func List() {
 	}
 }
 
-func package_data_suffix() string {
-	switch runtime.GOOS {
-	case "windows":
-		return filepath.Join("AppData", "Roaming", "pket")
-	case "darwin":
-		return filepath.Join("Library", "Application Support", "pket")
-	default:
-		return filepath.Join(".local", "share", "pket")
-	}
-}
-
 func Info(pack string) {
 	home_dir, err := os.UserHomeDir()
 	if err != nil {
@@ -108,8 +96,8 @@ func Info(pack string) {
 		return
 	}
 
-	app_home_dir := filepath.Join(home_dir, package_data_suffix())
-	install_dir, err := find_package(app_home_dir, pack)
+	app_home_dir := filepath.Join(home_dir, core.Package_data_suffix())
+	install_dir, err := core.Find_package(app_home_dir, pack)
 	if err != nil {
 		print_info_error(err.Error())
 		return
@@ -188,45 +176,6 @@ func Info(pack string) {
 			fmt.Println("  " + "None")
 		}
 	}
-}
-
-func find_package(app_home_dir string, query string) (string, error) {
-	query = strings.TrimSpace(query)
-	if query == "" {
-		return "", fmt.Errorf("package name or UID is required")
-	}
-
-	entries, err := os.ReadDir(app_home_dir)
-	if os.IsNotExist(err) {
-		return "", fmt.Errorf("no packages installed")
-	}
-	if err != nil {
-		return "", fmt.Errorf("cannot read package directory: %w", err)
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-
-		install_dir := filepath.Join(app_home_dir, entry.Name())
-		if entry.Name() == query {
-			return install_dir, nil
-		}
-
-		manifest_path := filepath.Join(install_dir, "pket-manifest", "pket-config.toml")
-		data, err := os.ReadFile(manifest_path)
-		if err != nil {
-			continue
-		}
-
-		var config core.BuiltConfig
-		if _, err := toml.Decode(string(data), &config); err == nil && config.Metadata.PackageName == query {
-			return install_dir, nil
-		}
-	}
-
-	return "", fmt.Errorf("package not found: %s", query)
 }
 
 func print_info_error(message string) {

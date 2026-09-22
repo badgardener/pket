@@ -8,7 +8,7 @@ import (
 	"pket/ui"
 )
 
-const VERSION = "26.1.7"
+const VERSION = "26.1.8"
 
 func printHelp() {
 	fmt.Println(ui.Title.Render("pket") + " - Package Management Tool")
@@ -21,7 +21,6 @@ func printHelp() {
 	fmt.Println("  " + ui.Command.Render("install") + " " + ui.Argument.Render("<package>") + "    Install a package to a directory.")
 	fmt.Println("  " + ui.Command.Render("list") + "                 List installed packages.")
 	fmt.Println("  " + ui.Command.Render("info") + " " + ui.Argument.Render("<package>") + "       Show information about an installed ui.Package.")
-	fmt.Println("  " + ui.Command.Render("repair") + " " + ui.Argument.Render("<package>") + "     Repair an installed ui.Package.")
 	fmt.Println("  " + ui.Command.Render("uninstall") + " " + ui.Argument.Render("<package>") + "  Remove an installed ui.Package.")
 
 	fmt.Println("\nOptions:")
@@ -104,14 +103,6 @@ func main() {
 		}
 
 		Info(argv[2])
-
-	case "repair":
-		if argc != 3 {
-			fmt.Println(ui.Error.Render("Error:") + " Package name is required and ui.Argument count should be exactly 2.")
-			os.Exit(1)
-		}
-
-		core.Repair(argv[2], callback)
 
 	case "uninstall":
 		if argc != 3 {
