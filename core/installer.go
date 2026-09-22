@@ -316,7 +316,7 @@ func install_pack(pack string, call Callback, temp string, app_home_dir string) 
 
 	call.Log("Manifest decoded successfully.")
 
-	if err := config.validate(); err != nil {
+	if err := config.Validate(); err != nil {
 		call.Error("Invalid pket-config.toml: " + err.Error())
 		return
 	}
@@ -681,7 +681,7 @@ func copy_file(source string, target string, call Callback) error {
 	return nil
 }
 
-func (c BuiltConfig) validate() error {
+func (c BuiltConfig) Validate() error {
 	if strings.TrimSpace(c.Metadata.PackageName) == "" {
 		return fmt.Errorf("metadata.package_name is required")
 	}

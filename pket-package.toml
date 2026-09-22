@@ -1,7 +1,7 @@
 [package]
 name = "pket"
 pack = "badgardener.pket"
-version = "26.1.6"
+version = "26.1.7"
 description = "A simple application packager, installer and manager."
 authors = ["badgardener"]
 
