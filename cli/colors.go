@@ -1,4 +1,4 @@
-package ui
+package cli
 
 import "charm.land/lipgloss/v2"
 

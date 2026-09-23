@@ -5,36 +5,36 @@ import (
 	"os"
 
 	"pket/core"
-	"pket/ui"
+	"pket/cli"
 )
 
 const VERSION = "26.2.0"
 
 func printHelp() {
-	fmt.Println(ui.Title.Render("pket") + " - Package Management Tool")
+	fmt.Println(cli.Title.Render("pket") + " - Package Management Tool")
 
 	fmt.Println("\nUsage:")
-	fmt.Println("  " + ui.Command.Render("pket") + " " + ui.Muted.Render("[--verbose]") + " " + ui.Argument.Render("<command>") + " " + ui.Muted.Render("[arguments]"))
+	fmt.Println("  " + cli.Command.Render("pket") + " " + cli.Muted.Render("[--verbose]") + " " + cli.Argument.Render("<command>") + " " + cli.Muted.Render("[arguments]"))
 
 	fmt.Println("\nCommands:")
-	fmt.Println("  " + ui.Command.Render("build") + " " + ui.Argument.Render("<path>") + "         Build a package from a directory.")
-	fmt.Println("  " + ui.Command.Render("install") + " " + ui.Argument.Render("<package>") + "    Install a package to a directory.")
-	fmt.Println("  " + ui.Command.Render("list") + "                 List installed packages.")
-	fmt.Println("  " + ui.Command.Render("info") + " " + ui.Argument.Render("<package>") + "       Show information about an installed package.")
-	fmt.Println("  " + ui.Command.Render("uninstall") + " " + ui.Argument.Render("<package>") + "  Remove an installed package.")
+	fmt.Println("  " + cli.Command.Render("build") + " " + cli.Argument.Render("<path>") + "         Build a package from a directory.")
+	fmt.Println("  " + cli.Command.Render("install") + " " + cli.Argument.Render("<package>") + "    Install a package to a directory.")
+	fmt.Println("  " + cli.Command.Render("list") + "                 List installed packages.")
+	fmt.Println("  " + cli.Command.Render("info") + " " + cli.Argument.Render("<package>") + "       Show information about an installed package.")
+	fmt.Println("  " + cli.Command.Render("uninstall") + " " + cli.Argument.Render("<package>") + "  Remove an installed package.")
 
 	fmt.Println("\nOptions:")
-	fmt.Println("  " + ui.Flag.Render("--verbose") + "           Enable verbose output.")
-	fmt.Println("  " + ui.Flag.Render("--help") + ", " + ui.Flag.Render("-h") + "          Show this help message.")
-	fmt.Println("  " + ui.Flag.Render("--version") + ", " + ui.Flag.Render("-v") + "       Show version information.")
+	fmt.Println("  " + cli.Flag.Render("--verbose") + "           Enable verbose output.")
+	fmt.Println("  " + cli.Flag.Render("--help") + ", " + cli.Flag.Render("-h") + "          Show this help message.")
+	fmt.Println("  " + cli.Flag.Render("--version") + ", " + cli.Flag.Render("-v") + "       Show version information.")
 
 	fmt.Println("\nExamples:")
-	fmt.Println("  " + ui.Command.Render("pket build") + " " + ui.Package.Render("./my-package"))
-	fmt.Println("  " + ui.Command.Render("pket install") + " " + ui.Package.Render("./my-ui.Package.pkt") + " " + ui.Package.Render("/opt/packages"))
-	fmt.Println("  " + ui.Command.Render("pket list"))
-	fmt.Println("  " + ui.Command.Render("pket info") + " " + ui.Package.Render("my-package"))
-	fmt.Println("  " + ui.Command.Render("pket repair") + " " + ui.Package.Render("my-package"))
-	fmt.Println("  " + ui.Command.Render("pket uninstall") + " " + ui.Package.Render("my-package"))
+	fmt.Println("  " + cli.Command.Render("pket build") + " " + cli.Package.Render("./my-package"))
+	fmt.Println("  " + cli.Command.Render("pket install") + " " + cli.Package.Render("./my-cli.Package.pkt") + " " + cli.Package.Render("/opt/packages"))
+	fmt.Println("  " + cli.Command.Render("pket list"))
+	fmt.Println("  " + cli.Command.Render("pket info") + " " + cli.Package.Render("my-package"))
+	fmt.Println("  " + cli.Command.Render("pket repair") + " " + cli.Package.Render("my-package"))
+	fmt.Println("  " + cli.Command.Render("pket uninstall") + " " + cli.Package.Render("my-package"))
 }
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 	argv := os.Args
 
 	if argc == 1 {
-		fmt.Println("pket is " + ui.Success.Render("installed.") + " Use " + ui.Info.Render("pket --help") + " for usage.")
+		fmt.Println("pket is " + cli.Success.Render("installed.") + " Use " + cli.Info.Render("pket --help") + " for usage.")
 		os.Exit(1)
 	}
 
@@ -54,13 +54,13 @@ func main() {
 	if verbose {
 		argv = append([]string{argv[0]}, argv[2:]...)
 		argc--
-		callback = ui.VerboseCallback{}
+		callback = cli.VerboseCallback{}
 	} else {
-		callback = ui.NormalCallback{}
+		callback = cli.NormalCallback{}
 	}
 
 	if argc == 1 {
-		fmt.Println("pket is " + ui.Success.Render("installed.") + " Use " + ui.Info.Render("pket --help") + " for usage.")
+		fmt.Println("pket is " + cli.Success.Render("installed.") + " Use " + cli.Info.Render("pket --help") + " for usage.")
 		os.Exit(1)
 	}
 
@@ -69,7 +69,7 @@ func main() {
 	switch cmd {
 	case "build":
 		if argc != 3 {
-			fmt.Println(ui.Error.Render("Error:") + " Path is required and ui.Argument count should be exactly 2.")
+			fmt.Println(cli.Error.Render("Error:") + " Path is required and cli.Argument count should be exactly 2.")
 			os.Exit(1)
 		}
 
@@ -77,7 +77,7 @@ func main() {
 
 	case "install":
 		if argc != 3 {
-			fmt.Println(ui.Error.Render("Error:") + " Path is required and ui.Argument count should be exactly 2.")
+			fmt.Println(cli.Error.Render("Error:") + " Path is required and cli.Argument count should be exactly 2.")
 			os.Exit(1)
 		}
 
@@ -85,7 +85,7 @@ func main() {
 
 	case "list":
 		if verbose {
-			fmt.Println(ui.Error.Render("Error:") + " Verbose not allowed here.")
+			fmt.Println(cli.Error.Render("Error:") + " Verbose not allowed here.")
 			os.Exit(1)
 		}
 
@@ -93,12 +93,12 @@ func main() {
 
 	case "info":
 		if verbose {
-			fmt.Println(ui.Error.Render("Error:") + " Verbose not allowed here.")
+			fmt.Println(cli.Error.Render("Error:") + " Verbose not allowed here.")
 			os.Exit(1)
 		}
 
 		if argc != 3 {
-			fmt.Println(ui.Error.Render("Error:") + " Package name is required and ui.Argument count should be exactly 2.")
+			fmt.Println(cli.Error.Render("Error:") + " Package name is required and cli.Argument count should be exactly 2.")
 			os.Exit(1)
 		}
 
@@ -106,7 +106,7 @@ func main() {
 
 	case "uninstall":
 		if argc != 3 {
-			fmt.Println(ui.Error.Render("Error:") + " Package name is required and ui.Argument count should be exactly 2.")
+			fmt.Println(cli.Error.Render("Error:") + " Package name is required and cli.Argument count should be exactly 2.")
 			os.Exit(1)
 		}
 
@@ -116,11 +116,11 @@ func main() {
 		printHelp()
 
 	case "--version", "-v":
-		fmt.Println(ui.Title.Render("pket") + " version " + ui.Info.Render(VERSION))
+		fmt.Println(cli.Title.Render("pket") + " version " + cli.Info.Render(VERSION))
 
 	default:
-		fmt.Println(ui.Error.Render("Error:") + " invalid command " + ui.Argument.Render("'"+cmd+"'") + ".")
-		fmt.Println("Use " + ui.Info.Render("pket --help") + " for usage.")
+		fmt.Println(cli.Error.Render("Error:") + " invalid command " + cli.Argument.Render("'"+cmd+"'") + ".")
+		fmt.Println("Use " + cli.Info.Render("pket --help") + " for usage.")
 		os.Exit(1)
 	}
 }

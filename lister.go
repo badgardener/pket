@@ -10,24 +10,24 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"pket/core"
-	"pket/ui"
+	"pket/cli"
 )
 
 func List() {
 	home_dir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Println(ui.Error.Render("Cannot determine home directory: " + err.Error()))
+		fmt.Println(cli.Error.Render("Cannot determine home directory: " + err.Error()))
 		return
 	}
 
 	app_home_dir := filepath.Join(home_dir, core.Package_data_suffix())
 	entries, err := os.ReadDir(app_home_dir)
 	if os.IsNotExist(err) {
-		fmt.Println(ui.Warning.Render("No packages installed."))
+		fmt.Println(cli.Warning.Render("No packages installed."))
 		return
 	}
 	if err != nil {
-		fmt.Println(ui.Error.Render("Cannot read package directory: " + err.Error()))
+		fmt.Println(cli.Error.Render("Cannot read package directory: " + err.Error()))
 		return
 	}
 
@@ -69,7 +69,7 @@ func List() {
 	}
 
 	if len(packages) == 0 {
-		fmt.Println(ui.Warning.Render("No packages installed."))
+		fmt.Println(cli.Warning.Render("No packages installed."))
 		return
 	}
 
@@ -77,9 +77,9 @@ func List() {
 		return packages[i].name < packages[j].name
 	})
 
-	name_style := ui.Title
-	uid_style := ui.Command
-	version_style := ui.Success
+	name_style := cli.Title
+	uid_style := cli.Command
+	version_style := cli.Success
 	for _, package_item := range packages {
 		fmt.Printf("%s %s %s\n",
 			name_style.Render(package_item.name),
@@ -120,10 +120,10 @@ func Info(pack string) {
 		return
 	}
 
-	heading_style := ui.Title
-	label_style := ui.Info
-	value_style := ui.Success
-	path_style := ui.Command
+	heading_style := cli.Title
+	label_style := cli.Info
+	value_style := cli.Success
+	path_style := cli.Command
 
 	version := make([]string, len(config.Metadata.Version))
 	for i, part := range config.Metadata.Version {
@@ -161,7 +161,7 @@ func Info(pack string) {
 	if os.IsNotExist(err) {
 		fmt.Println("  " + "None")
 	} else if err != nil {
-		fmt.Println("  " + ui.Error.Render("Cannot read files.lst: "+err.Error()))
+		fmt.Println("  " + cli.Error.Render("Cannot read files.lst: "+err.Error()))
 	} else {
 		found := false
 		for _, line := range strings.Split(string(files_data), "\n") {
@@ -179,6 +179,6 @@ func Info(pack string) {
 }
 
 func print_info_error(message string) {
-	style := ui.Error
+	style := cli.Error
 	fmt.Println(style.Render(message))
 }
