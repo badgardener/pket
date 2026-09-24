@@ -75,11 +75,11 @@ button {
 }
 
 .brand-mark {
-  color: var(--bg);
-  background: var(--cyan);
-  padding: 1px 4px;
-  font: 600 15px var(--mono);
-  letter-spacing: -0.1em;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  display: block;
+  box-sizing: border-box;
 }
 
 .main-nav {

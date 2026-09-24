@@ -211,6 +211,68 @@ A `.pkt` file is a gzip-compressed tar archive. It contains:
 
 The builder uses parallel gzip compression, and the installer uses parallel gzip decompression where supported. Installation also verifies the payload before activation and avoids replacing the active installation until verification and staging complete.
 
+## Example
+
+> NOTE: "VSCode" and "Microsoft" names are used here for demonstration purposes only. This example is not affiliated with, endorsed by, or sponsored by Microsoft.
+
+#### `pket-project.toml`
+
+```toml
+[package]
+name = "VSCode"
+pack = "microsoft.vscode"
+version = "1.139.0"
+description = "Visual Studio Code is a free, open source AI code editor."
+authors = ["Microsoft"]
+
+[files]
+base = "VSCode-linux-x64"
+assets = []
+
+[[executable]]
+path = "code"
+link = "code"
+```
+
+### Logs
+
+#### Building
+
+```sh
+time pket build .
+```
+
+```log
+[ INFO  ] Parsing pket-package.toml...
+[SUCCESS] Parsed pket-package.toml.
+[ INFO  ] Building final config...
+[SUCCESS] Final config built successfully.
+[ INFO  ] Write SHA-512 sums...
+[SUCCESS] Hash written successfully.
+[ INFO  ] Building .pkt...
+[SUCCESS] Package built successfully.
+pket build .  15.74s user 1.18s system 481% cpu 3.513 total
+```
+
+#### Installing
+
+```sh
+yes y | time pket install microsoft.vscode-1.139.0.pkt
+```
+
+```log
+[ INFO  ] Extracting packet...
+[SUCCESS] Extracted 3220 archive entries.
+[SUCCESS] SHA sums matched.
+[SUCCESS] Parsed pket-config.toml.
+[WARNING] Package UID is already installed; updating existing package.
+Package is already installed. Do you want to update it? [y/N] [SUCCESS] Package updated successfully.
+[SUCCESS] Removed temporary files.
+pket install microsoft.vscode-1.137.0.pkt  10.66s user 1.64s system 159% cpu 7.718 total
+```
+
+> See [this file](assets/build.log) for detailed build logs and [this](assets/install.log) for install.
+
 ## Troubleshooting
 
 ### `pket-package.toml` is missing

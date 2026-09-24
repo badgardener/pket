@@ -8,7 +8,7 @@ import (
 	"pket/cli"
 )
 
-const VERSION = "26.2.0"
+const VERSION = "26.2.1"
 
 func printHelp() {
 	fmt.Println(cli.Title.Render("pket") + " - Package Management Tool")
@@ -30,10 +30,9 @@ func printHelp() {
 
 	fmt.Println("\nExamples:")
 	fmt.Println("  " + cli.Command.Render("pket build") + " " + cli.Package.Render("./my-package"))
-	fmt.Println("  " + cli.Command.Render("pket install") + " " + cli.Package.Render("./my-cli.Package.pkt") + " " + cli.Package.Render("/opt/packages"))
+	fmt.Println("  " + cli.Command.Render("pket install") + " " + cli.Package.Render("./my-cli.Package.pkt"))
 	fmt.Println("  " + cli.Command.Render("pket list"))
 	fmt.Println("  " + cli.Command.Render("pket info") + " " + cli.Package.Render("my-package"))
-	fmt.Println("  " + cli.Command.Render("pket repair") + " " + cli.Package.Render("my-package"))
 	fmt.Println("  " + cli.Command.Render("pket uninstall") + " " + cli.Package.Render("my-package"))
 }
 
