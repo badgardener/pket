@@ -1,3 +1,5 @@
+<img src="assets/app_icon.png" alt="App ICON" width="64" height="64">
+
 # pket
 
 `pket` is a small package builder and package manager for applications and command-line tools. It creates compressed `.pkt` archives, verifies package contents with SHA-512, installs packages transactionally, and manages executable links.

@@ -20,10 +20,10 @@ const docs = {
 
       <h3 id="workflow">The basic workflow</h3>
       ${code(`pket build ./my-app
-    pket install ./my-app-1.0.0.pkt
-    pket list
-    pket info my-app
-    pket uninstall my-app`)}
+pket install ./my-app-1.0.0.pkt
+pket list
+pket info my-app
+pket uninstall my-app`)}
     `,
   ],
 
@@ -36,7 +36,9 @@ const docs = {
       <p>
         pket requires Go 1.27.1 or newer. The repository includes a build script for cross-compiling the CLI.
       </p>
-      ${code(`git clone ${REPO}\ncd pket\ngo build -o pket .`)}
+      ${code(`git clone ${REPO}
+cd pket
+go build -o pket .`)}
 
       <h3 id="binary">Use the executable</h3>
       <p>Run the executable directly or place it somewhere on your <code>PATH</code>.</p>
@@ -60,12 +62,12 @@ const docs = {
 
       <h3 id="commands">Commands</h3>
       ${code(`pket build <directory>      Build a package from a directory
-    pket install <package>      Install or update a package archive
-    pket list                   List installed packages
-    pket info <package>         Show package information
-    pket uninstall <package>    Uninstall by name or UID
-    pket --help                 Show help
-    pket --version              Show version`)}
+pket install <package>      Install or update a package archive
+pket list                   List installed packages
+pket info <package>         Show package information
+pket uninstall <package>    Uninstall by name or UID
+pket --help                 Show help
+pket --version              Show version`)}
 
       <h3 id="verbose">Verbose output</h3>
       <p>
@@ -73,8 +75,8 @@ const docs = {
         It is not supported by <code>list</code> or <code>info</code>.
       </p>
       ${code(`pket --verbose build ./my-app
-    pket --verbose install ./my-app-1.0.0.pkt
-    pket --verbose uninstall my-app`)}
+pket --verbose install ./my-app-1.0.0.pkt
+pket --verbose uninstall my-app`)}
     `,
   ],
 
@@ -89,22 +91,22 @@ const docs = {
         selects payload files, and declares at least one executable.
       </p>
       ${code(`[package]
-    name = "My App"
-    pack = "my-app"
-    version = "1.0.0"
-    description = "An example packaged application."
-    authors = ["Example Author"]
+name = "My App"
+pack = "my-app"
+version = "1.0.0"
+description = "An example packaged application."
+authors = ["Example Author"]
 
-    [files]
-    base = "build"
-    assets = ["LICENSE", "README.md"]
+[files]
+base = "build"
+assets = ["LICENSE", "README.md"]
 
-    [[executable]]
-    path = "my-app"
-    link = "my-app"
+[[executable]]
+path = "my-app"
+link = "my-app"
 
-    [install]
-    postinstall = "pket --version"`)}
+[install]
+postinstall = "pket --version"`)}
 
       <h3 id="build">Build the archive</h3>
       ${code("pket build ./my-app")}
@@ -180,9 +182,9 @@ const docs = {
     `
       <h2 id="fields">Manifest fields</h2>
       ${code(`[package]   name, pack, version, description, authors
-    [files]     base, assets
-    [[executable]] path, link
-    [install]   preinstall, postinstall`)}
+[files]     base, assets
+[[executable]] path, link
+[install]   preinstall, postinstall`)}
 
       <h3 id="package">Package and files</h3>
       <p>
