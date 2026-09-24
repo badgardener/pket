@@ -123,6 +123,7 @@ func extract_tar(pack string, dir string, call Callback) error {
 
 	reader := tar.NewReader(gzipReader)
 	count := 0
+	seen := make(map[string]struct{})
 
 	for {
 		header, err := reader.Next()
@@ -137,6 +138,10 @@ func extract_tar(pack string, dir string, call Callback) error {
 		if name == "." || filepath.IsAbs(name) || name == ".." || strings.HasPrefix(name, ".."+string(os.PathSeparator)) {
 			return fmt.Errorf("invalid archive temp: %s", header.Name)
 		}
+		if _, exists := seen[name]; exists {
+			return fmt.Errorf("duplicate archive entry: %s", header.Name)
+		}
+		seen[name] = struct{}{}
 
 		target := filepath.Join(dir, name)
 		base := filepath.Clean(dir)
@@ -148,6 +153,14 @@ func extract_tar(pack string, dir string, call Callback) error {
 
 		if relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
 			return fmt.Errorf("archive temp escapes extraction directory: %s", header.Name)
+		}
+		if err := validateExtractionParents(base, target); err != nil {
+			return err
+		}
+		if _, err := os.Lstat(target); err == nil {
+			return fmt.Errorf("duplicate or conflicting archive entry: %s", header.Name)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("cannot inspect archive target %s: %w", name, err)
 		}
 
 		switch header.Typeflag {
@@ -177,7 +190,9 @@ func extract_tar(pack string, dir string, call Callback) error {
 			}
 
 		case tar.TypeSymlink:
-			if filepath.IsAbs(header.Linkname) || header.Linkname == ".." || strings.HasPrefix(filepath.Clean(header.Linkname), ".."+string(os.PathSeparator)) {
+			linkTarget := filepath.Join(filepath.Dir(target), header.Linkname)
+			linkRelative, err := filepath.Rel(base, filepath.Clean(linkTarget))
+			if err != nil || linkRelative == ".." || strings.HasPrefix(linkRelative, ".."+string(os.PathSeparator)) {
 				return fmt.Errorf("invalid symbolic link target in archive: %s", header.Name)
 			}
 
@@ -219,6 +234,32 @@ func extract_tar(pack string, dir string, call Callback) error {
 	}
 
 	call.Success(fmt.Sprintf("Extracted %d archive entries.", count))
+	return nil
+}
+
+func validateExtractionParents(base string, target string) error {
+	relative, err := filepath.Rel(base, filepath.Dir(target))
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("archive entry parent escapes extraction directory: %s", target)
+	}
+
+	current := base
+	for _, part := range strings.Split(relative, string(os.PathSeparator)) {
+		if part == "." || part == "" {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("cannot inspect archive parent %s: %w", current, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return fmt.Errorf("archive entry parent is not a directory: %s", current)
+		}
+	}
 	return nil
 }
 
@@ -364,6 +405,14 @@ func install_pack(pack string, call Callback, temp string, app_home_dir string) 
 		return
 	}
 
+	if config.Install.PreInstall != "" && confirm_install_command("preinstall", config.Install.PreInstall, call) {
+		if err := run_install_command(config.Install.PreInstall, temp, call); err != nil {
+			call.Error("Preinstall command failed: " + err.Error())
+			os.RemoveAll(temp)
+			return
+		}
+	}
+
 	backup_dir := ""
 	if installed {
 		backup_dir = filepath.Join(app_home_dir, "."+uid+".previous")
@@ -405,7 +454,7 @@ func install_pack(pack string, call Callback, temp string, app_home_dir string) 
 
 	if installed {
 		call.Log("Removing externally created files from previous installation...")
-		if err := remove_external_files(backup_dir, call); err != nil {
+		if err := remove_external_files(backup_dir, call, install_dir); err != nil {
 			call.Error("Cannot remove previous external files: " + err.Error())
 			return
 		}
@@ -434,15 +483,6 @@ func install_pack(pack string, call Callback, temp string, app_home_dir string) 
 		call.Success("Package installed successfully.")
 	}
 
-	if config.Install.PreInstall != "" {
-		if confirm_install_command("preinstall", config.Install.PreInstall, call) {
-			if err := run_install_command(config.Install.PreInstall, install_dir, call); err != nil {
-				call.Error("Preinstall command failed: " + err.Error())
-				return
-			}
-		}
-	}
-
 	if config.Install.PostInstall != "" {
 		if confirm_install_command("postinstall", config.Install.PostInstall, call) {
 			if err := run_install_command(config.Install.PostInstall, install_dir, call); err != nil {
@@ -455,7 +495,10 @@ func install_pack(pack string, call Callback, temp string, app_home_dir string) 
 
 func make_executables_executable(executables []ExecutableConfig, install_dir string, call Callback) error {
 	for _, executable := range executables {
-		source := strings.ReplaceAll(strings.TrimSpace(executable.Path), "@res", filepath.Join(install_dir, "payload"))
+		source, err := resolve_resource_path(executable.Path, install_dir)
+		if err != nil {
+			return err
+		}
 		info, err := os.Stat(source)
 		if err != nil {
 			return fmt.Errorf("cannot inspect executable %s: %w", source, err)
@@ -497,7 +540,11 @@ func create_executable_links(executables []ExecutableConfig, install_dir string,
 			return nil, fmt.Errorf("invalid executable link name %q", executable.Link)
 		}
 
-		source := strings.ReplaceAll(strings.TrimSpace(executable.Path), "@res", filepath.Join(install_dir, "payload"))
+		source, err := resolve_resource_path(executable.Path, install_dir)
+		if err != nil {
+			cleanup()
+			return nil, err
+		}
 		if _, err := os.Lstat(source); err != nil {
 			cleanup()
 			return nil, fmt.Errorf("executable source %s is unavailable: %w", source, err)
@@ -521,6 +568,18 @@ func create_executable_links(executables []ExecutableConfig, install_dir string,
 	}
 
 	return created, nil
+}
+
+func resolve_resource_path(resource string, install_dir string) (string, error) {
+	resource = strings.TrimSpace(resource)
+	if !strings.HasPrefix(resource, "@res/") {
+		return "", fmt.Errorf("resource path must start with @res/: %s", resource)
+	}
+	relative := strings.TrimPrefix(resource, "@res/")
+	if !isSafeRelativePath(relative) {
+		return "", fmt.Errorf("resource path escapes package payload: %s", resource)
+	}
+	return filepath.Join(install_dir, "payload", filepath.FromSlash(relative)), nil
 }
 
 func executable_link_dir(app_home_dir string) (string, error) {
@@ -566,7 +625,7 @@ func executable_link_dir(app_home_dir string) (string, error) {
 	return "", fmt.Errorf("no writable executable directory found in PATH")
 }
 
-func remove_external_files(install_dir string, call Callback) error {
+func remove_external_files(install_dir string, call Callback, additional_roots ...string) error {
 	files_list := filepath.Join(install_dir, "pket-manifest", "files.lst")
 	data, err := os.ReadFile(files_list)
 	if os.IsNotExist(err) {
@@ -594,12 +653,37 @@ func remove_external_files(install_dir string, call Callback) error {
 		if info.Mode()&os.ModeSymlink == 0 {
 			return fmt.Errorf("refusing to remove non-symlink external file: %s", path)
 		}
+		linkTarget, err := os.Readlink(path)
+		if err != nil {
+			return err
+		}
+		resolvedTarget := linkTarget
+		if !filepath.IsAbs(resolvedTarget) {
+			resolvedTarget = filepath.Join(filepath.Dir(path), resolvedTarget)
+		}
+		owned := isPathWithin(install_dir, resolvedTarget)
+		for _, root := range additional_roots {
+			owned = owned || isPathWithin(root, resolvedTarget)
+		}
+		if !owned {
+			return fmt.Errorf("refusing to remove external link not owned by package: %s", path)
+		}
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		call.Log("Removed external file: " + path)
 	}
 	return nil
+}
+
+func isPathWithin(base string, candidate string) bool {
+	base, baseErr := filepath.Abs(base)
+	candidate, candidateErr := filepath.Abs(candidate)
+	if baseErr != nil || candidateErr != nil {
+		return false
+	}
+	relative, err := filepath.Rel(base, candidate)
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(os.PathSeparator))
 }
 
 func confirm_install_command(name string, command string, call Callback) bool {
@@ -728,6 +812,13 @@ func (c BuiltConfig) Validate() error {
 
 		if strings.TrimSpace(executable.Link) == "" {
 			return fmt.Errorf("executable[%d].link is required", i)
+		}
+		if !strings.HasPrefix(strings.TrimSpace(executable.Path), "@res/") || !isSafeRelativePath(strings.TrimPrefix(strings.TrimSpace(executable.Path), "@res/")) {
+			return fmt.Errorf("executable[%d].path must be inside the package payload", i)
+		}
+		link := strings.TrimSpace(executable.Link)
+		if link == "." || link == ".." || filepath.Base(link) != link || strings.ContainsAny(link, `/\\`) {
+			return fmt.Errorf("executable[%d].link must be a single path component", i)
 		}
 	}
 

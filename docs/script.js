@@ -254,7 +254,6 @@ function home() {
 <a class="button secondary" href="#/docs/getting-started">Read the docs</a>
 </div>
 <div class="hero-meta">
-<span>current <strong>v26.2.0</strong>
 </span>
 <span>license <strong>MIT</strong>
 </span>

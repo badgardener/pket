@@ -9,26 +9,26 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"pket/core"
 	"pket/cli"
+	"pket/core"
 )
 
-func List() {
+func List() bool {
 	home_dir, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Println(cli.Error.Render("Cannot determine home directory: " + err.Error()))
-		return
+		return false
 	}
 
 	app_home_dir := filepath.Join(home_dir, core.Package_data_suffix())
 	entries, err := os.ReadDir(app_home_dir)
 	if os.IsNotExist(err) {
 		fmt.Println(cli.Warning.Render("No packages installed."))
-		return
+		return true
 	}
 	if err != nil {
 		fmt.Println(cli.Error.Render("Cannot read package directory: " + err.Error()))
-		return
+		return false
 	}
 
 	type package_info struct {
@@ -70,7 +70,7 @@ func List() {
 
 	if len(packages) == 0 {
 		fmt.Println(cli.Warning.Render("No packages installed."))
-		return
+		return true
 	}
 
 	sort.Slice(packages, func(i, j int) bool {
@@ -87,37 +87,38 @@ func List() {
 			version_style.Render(package_item.version),
 		)
 	}
+	return true
 }
 
-func Info(pack string) {
+func Info(pack string) bool {
 	home_dir, err := os.UserHomeDir()
 	if err != nil {
 		print_info_error("Cannot determine home directory: " + err.Error())
-		return
+		return false
 	}
 
 	app_home_dir := filepath.Join(home_dir, core.Package_data_suffix())
 	install_dir, err := core.Find_package(app_home_dir, pack)
 	if err != nil {
 		print_info_error(err.Error())
-		return
+		return false
 	}
 
 	manifest_path := filepath.Join(install_dir, "pket-manifest", "pket-config.toml")
 	data, err := os.ReadFile(manifest_path)
 	if err != nil {
 		print_info_error("Cannot read package manifest: " + err.Error())
-		return
+		return false
 	}
 
 	var config core.BuiltConfig
 	if _, err := toml.Decode(string(data), &config); err != nil {
 		print_info_error("Cannot parse package manifest: " + err.Error())
-		return
+		return false
 	}
 	if err := config.Validate(); err != nil {
 		print_info_error("Invalid package manifest: " + err.Error())
-		return
+		return false
 	}
 
 	heading_style := cli.Title
@@ -176,6 +177,7 @@ func Info(pack string) {
 			fmt.Println("  " + "None")
 		}
 	}
+	return true
 }
 
 func print_info_error(message string) {

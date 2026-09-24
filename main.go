@@ -4,11 +4,21 @@ import (
 	"fmt"
 	"os"
 
-	"pket/core"
 	"pket/cli"
+	"pket/core"
 )
 
-const VERSION = "26.2.1"
+const VERSION = "26.2.2"
+
+type commandCallback struct {
+	core.Callback
+	failed bool
+}
+
+func (c *commandCallback) Error(msg string) {
+	c.failed = true
+	c.Callback.Error(msg)
+}
 
 func printHelp() {
 	fmt.Println(cli.Title.Render("pket") + " - Package Management Tool")
@@ -48,14 +58,14 @@ func main() {
 	cmd := argv[1]
 
 	verbose := cmd == "--verbose"
-	var callback core.Callback
+	var callback *commandCallback
 
 	if verbose {
 		argv = append([]string{argv[0]}, argv[2:]...)
 		argc--
-		callback = cli.VerboseCallback{}
+		callback = &commandCallback{Callback: cli.VerboseCallback{}}
 	} else {
-		callback = cli.NormalCallback{}
+		callback = &commandCallback{Callback: cli.NormalCallback{}}
 	}
 
 	if argc == 1 {
@@ -73,6 +83,9 @@ func main() {
 		}
 
 		core.Build(argv[2], callback)
+		if callback.failed {
+			os.Exit(1)
+		}
 
 	case "install":
 		if argc != 3 {
@@ -81,6 +94,9 @@ func main() {
 		}
 
 		core.Install(argv[2], callback)
+		if callback.failed {
+			os.Exit(1)
+		}
 
 	case "list":
 		if verbose {
@@ -88,7 +104,9 @@ func main() {
 			os.Exit(1)
 		}
 
-		List()
+		if !List() {
+			os.Exit(1)
+		}
 
 	case "info":
 		if verbose {
@@ -101,7 +119,9 @@ func main() {
 			os.Exit(1)
 		}
 
-		Info(argv[2])
+		if !Info(argv[2]) {
+			os.Exit(1)
+		}
 
 	case "uninstall":
 		if argc != 3 {
@@ -110,12 +130,18 @@ func main() {
 		}
 
 		core.Uninstall(argv[2], callback)
+		if callback.failed {
+			os.Exit(1)
+		}
 
 	case "--help", "-h":
 		printHelp()
 
-	case "--version", "-v":
+	case "--version":
 		fmt.Println(cli.Title.Render("pket") + " version " + cli.Info.Render(VERSION))
+
+	case "-v":
+		fmt.Println(VERSION)
 
 	default:
 		fmt.Println(cli.Error.Render("Error:") + " invalid command " + cli.Argument.Render("'"+cmd+"'") + ".")

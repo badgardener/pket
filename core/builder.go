@@ -72,9 +72,17 @@ func (c BuilderConfig) Validate() error {
 	if c.Files.Base == "" {
 		return fmt.Errorf("files.base is required")
 	}
+	if filepath.IsAbs(c.Files.Base) || !isSafeRelativePath(c.Files.Base) {
+		return fmt.Errorf("files.base must be a relative path inside the project")
+	}
 
 	if c.Files.Assets == nil {
 		return fmt.Errorf("files.assets is required")
+	}
+	for i, asset := range c.Files.Assets {
+		if filepath.IsAbs(asset) || !isSafeRelativePath(asset) {
+			return fmt.Errorf("files.assets[%d] must be a relative path inside the project", i)
+		}
 	}
 
 	if len(c.Executables) == 0 {
@@ -89,9 +97,20 @@ func (c BuilderConfig) Validate() error {
 		if executable.Link == "" {
 			return fmt.Errorf("executable[%d].link is required", i)
 		}
+		if filepath.IsAbs(executable.Path) || !isSafeRelativePath(executable.Path) {
+			return fmt.Errorf("executable[%d].path must be a relative path inside the payload", i)
+		}
+		if executable.Link == "." || executable.Link == ".." || filepath.Base(executable.Link) != executable.Link || strings.ContainsAny(executable.Link, `/\\`) {
+			return fmt.Errorf("executable[%d].link must be a single path component", i)
+		}
 	}
 
 	return nil
+}
+
+func isSafeRelativePath(path string) bool {
+	clean := filepath.Clean(path)
+	return clean != "." && clean != ".." && !strings.HasPrefix(clean, ".."+string(os.PathSeparator))
 }
 
 func Build(project_path string, callback Callback) {
@@ -229,6 +248,7 @@ func build_packet(base_path string, config BuilderConfig, call Callback) {
 	call.Success("Final config built successfully.")
 	call.Log("Creating temp dir...")
 	temp_path := filepath.Join(base_path, ".pket")
+	defer os.RemoveAll(temp_path)
 	call.Log("Checking existing temp dir...")
 	_, err = os.Stat(temp_path)
 
@@ -477,15 +497,18 @@ func make_tar(source_dir string, output_file string, call Callback) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	call.Log("Creating archive file: " + output_file)
-	file, err := os.Create(output_file)
+	temporary_output := output_file + ".tmp"
+	if err := os.Remove(temporary_output); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to clear temporary archive: %w", err)
+	}
+	defer os.Remove(temporary_output)
+
+	call.Log("Creating archive file: " + temporary_output)
+	file, err := os.Create(temporary_output)
 	if err != nil {
 		return fmt.Errorf("failed to create archive: %w", err)
 	}
-	defer func() {
-		call.Log("Closing archive file...")
-		file.Close()
-	}()
+	defer file.Close()
 
 	call.Log("Creating parallel gzip writer...")
 	gzip_writer := pgzip.NewWriter(file)
@@ -496,17 +519,9 @@ func make_tar(source_dir string, output_file string, call Callback) error {
 	if err := gzip_writer.SetConcurrency(1<<20, workers); err != nil {
 		return fmt.Errorf("failed to configure gzip workers: %w", err)
 	}
-	defer func() {
-		call.Log("Closing gzip writer...")
-		gzip_writer.Close()
-	}()
 
 	call.Log("Creating tar writer...")
 	tar_writer := tar.NewWriter(gzip_writer)
-	defer func() {
-		call.Log("Closing tar writer...")
-		tar_writer.Close()
-	}()
 
 	root, err := filepath.Abs(source_dir)
 	if err != nil {
@@ -518,7 +533,7 @@ func make_tar(source_dir string, output_file string, call Callback) error {
 		return fmt.Errorf("failed to resolve output file: %w", err)
 	}
 
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -569,7 +584,32 @@ func make_tar(source_dir string, output_file string, call Callback) error {
 
 		call.Log("Finished archive entry: " + relative)
 		return nil
-	})
+	}); err != nil {
+		tar_writer.Close()
+		gzip_writer.Close()
+		file.Close()
+		return err
+	}
+
+	call.Log("Closing tar writer...")
+	if err := tar_writer.Close(); err != nil {
+		gzip_writer.Close()
+		file.Close()
+		return fmt.Errorf("failed to close tar archive: %w", err)
+	}
+	call.Log("Closing gzip writer...")
+	if err := gzip_writer.Close(); err != nil {
+		file.Close()
+		return fmt.Errorf("failed to close gzip archive: %w", err)
+	}
+	call.Log("Closing archive file...")
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("failed to close archive file: %w", err)
+	}
+	if err := os.Rename(temporary_output, output_file); err != nil {
+		return fmt.Errorf("failed to activate archive: %w", err)
+	}
+	return nil
 }
 
 type HashEntry struct {
@@ -658,12 +698,20 @@ func Sha512Files(entries []HashEntry, call Callback) (string, error) {
 	hash := sha512.New()
 	outputs := make([][]byte, len(entries))
 
+	var firstErr error
 	for result := range results {
 		if result.err != nil {
-			return "", result.err
+			if firstErr == nil {
+				firstErr = result.err
+			}
+			continue
 		}
 
 		outputs[result.index] = result.data
+	}
+
+	if firstErr != nil {
+		return "", firstErr
 	}
 
 	for _, output := range outputs {
