@@ -17,6 +17,12 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <div class="ambient-scene" aria-hidden="true">
+      <span class="ambient-field ambient-field-cyan"></span>
+      <span class="ambient-field ambient-field-purple"></span>
+      <span class="ambient-field ambient-field-lime"></span>
+      <span class="ambient-field ambient-field-orange"></span>
+    </div>
     <div class="site-grid" aria-hidden="true"></div>
     <header class="topbar">
       <a class="brand" href="#/" aria-label="pket home"
@@ -38,7 +44,7 @@
         >
       </nav>
       <div class="nav-end">
-        ><button
+        <button
           class="menu-button"
           id="menu-button"
           aria-expanded="false"
@@ -51,8 +57,11 @@
     <main id="app"></main>
     <footer class="footer">
       <div class="footer-brand">
-        <span class="brand-mark">pk</span><strong>pket</strong
-        ><span>local packages, kept simple.</span>
+        <img
+          src="../assets/app_icon.png"
+          alt="pket logo"
+          class="brand-mark"
+        /><strong>pket</strong><span>local packages, kept simple.</span>
       </div>
       <div class="footer-links">
         <a href="#/docs/getting-started">Documentation</a

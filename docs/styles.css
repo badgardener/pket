@@ -9,6 +9,12 @@
   --lime: #c9f27d;
   --purple: #b999ff;
   --orange: #ffb86b;
+  --ambient-cyan: rgba(92, 225, 207, 0.23);
+  --ambient-purple: rgba(185, 153, 255, 0.17);
+  --ambient-lime: rgba(201, 242, 125, 0.13);
+  --ambient-orange: rgba(255, 184, 107, 0.11);
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   --sans: "DM Sans", system-ui, sans-serif;
 }
@@ -23,16 +29,45 @@ html {
 
 body {
   margin: 0;
+  position: relative;
   color: var(--ink);
-  background: var(--bg);
+  background:
+    radial-gradient(
+      circle at 50% -10%,
+      rgba(92, 225, 207, 0.045),
+      transparent 34rem
+    ),
+    var(--bg);
   font-family: var(--sans);
   line-height: 1.6;
   overflow-x: hidden;
 }
 
+body::after {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  opacity: 0.18;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.018) 0,
+    rgba(255, 255, 255, 0.018) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  mix-blend-mode: soft-light;
+}
+
 a {
   color: inherit;
   text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 4px;
 }
 
 button {
@@ -50,6 +85,67 @@ button {
     linear-gradient(90deg, rgba(92, 225, 207, 0.045) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: linear-gradient(to bottom, #000, transparent 70%);
+}
+
+.ambient-scene {
+  position: absolute;
+  inset: 0;
+  min-height: 100%;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.ambient-scene::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: radial-gradient(
+    circle at center,
+    transparent 15%,
+    rgba(7, 16, 15, 0.34) 78%
+  );
+}
+
+.ambient-field {
+  position: absolute;
+  width: 34rem;
+  height: 34rem;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: var(--ambient-opacity, 0.72);
+  will-change: transform, opacity;
+}
+
+.ambient-field-cyan {
+  top: -14rem;
+  left: 14%;
+  background: var(--ambient-cyan);
+  animation: ambient-drift 27s linear infinite;
+}
+
+.ambient-field-purple {
+  top: 18%;
+  right: -19rem;
+  background: var(--ambient-purple);
+  animation: ambient-drift 34s linear infinite;
+}
+
+.ambient-field-lime {
+  bottom: -22rem;
+  left: -12rem;
+  background: var(--ambient-lime);
+  animation: ambient-drift 31s linear infinite;
+}
+
+.ambient-field-orange {
+  right: 23%;
+  bottom: -28rem;
+  width: 28rem;
+  height: 28rem;
+  background: var(--ambient-orange);
+  animation: ambient-drift 38s linear infinite;
 }
 
 .topbar {
@@ -146,13 +242,19 @@ button {
   background: var(--cyan);
   font: 600 13px var(--mono);
   transition:
-    transform 0.15s,
-    box-shadow 0.15s;
+    transform 0.2s var(--ease-spring),
+    box-shadow 0.25s ease,
+    background-color 0.25s ease,
+    border-color 0.25s ease;
 }
 
 .button:hover {
   transform: translateY(-2px);
   box-shadow: 0 0 24px rgba(92, 225, 207, 0.24);
+}
+
+.button:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .button.secondary {
@@ -217,6 +319,10 @@ button {
   border: 1px solid var(--line);
   background: #091311;
   box-shadow: 18px 18px 0 rgba(92, 225, 207, 0.035);
+  transition:
+    transform 0.35s var(--ease-spring),
+    border-color 0.25s ease,
+    box-shadow 0.35s ease;
 }
 
 .terminal-bar {
@@ -1054,7 +1160,10 @@ button {
 
 .terminal:hover {
   border-color: rgba(92, 225, 207, 0.65);
-  transition: border-color 0.25s ease;
+  box-shadow:
+    20px 22px 0 rgba(92, 225, 207, 0.045),
+    0 0 32px rgba(92, 225, 207, 0.06);
+  transform: translateY(-3px);
 }
 
 .section-heading,
@@ -1115,6 +1224,18 @@ button {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
+  }
+
+  .ambient-field,
+  .terminal,
+  .feature,
+  .file-tree,
+  .release-item {
+    transform: none !important;
+  }
+
+  .ambient-field {
+    opacity: 0.32;
   }
 }
 
@@ -1244,5 +1365,64 @@ button {
 
   .container {
     width: min(100% - 32px, 1160px);
+  }
+
+  .code-block {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .ambient-field {
+    width: 22rem;
+    height: 22rem;
+    filter: blur(64px);
+  }
+}
+
+@keyframes ambient-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: calc(var(--ambient-opacity, 0.72) * 0.68);
+  }
+
+  100% {
+    transform: translate3d(var(--ambient-x, 8vw), var(--ambient-y, 10vh), 0);
+    opacity: var(--ambient-opacity, 0.72);
+  }
+}
+
+.reveal {
+  opacity: 0;
+  filter: blur(4px);
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s var(--ease-out),
+    transform 0.7s var(--ease-out),
+    filter 0.7s ease;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+}
+
+.reveal-delay-1 {
+  transition-delay: 80ms;
+}
+.reveal-delay-2 {
+  transition-delay: 160ms;
+}
+.reveal-delay-3 {
+  transition-delay: 240ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.is-visible {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
   }
 }

@@ -254,7 +254,6 @@ function home() {
 <a class="button secondary" href="#/docs/getting-started">Read the docs</a>
 </div>
 <div class="hero-meta">
-</span>
 <span>license <strong>MIT</strong>
 </span>
 <a href="${REPO}">source ↗</a>
@@ -417,6 +416,71 @@ function date(s) {
   }).format(new Date(s));
 }
 
+function observeReveals(root = document) {
+  const elements = root.querySelectorAll(
+    ".section, .page-head, .docs-sidebar, .docs-content > *, .toc, .release-panel, .release-list, .asset-group, .release-item, .doc-nav",
+  );
+
+  elements.forEach((element, index) => {
+    element.classList.add("reveal");
+    if (index % 4) element.classList.add(`reveal-delay-${index % 4}`);
+  });
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    elements.forEach((element) => element.classList.add("is-visible"));
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries, currentObserver) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        currentObserver.unobserve(entry.target);
+      });
+    },
+    { threshold: 0.12, rootMargin: "0px 0px -8%" },
+  );
+
+  elements.forEach((element) => observer.observe(element));
+}
+
+function randomizeAmbient() {
+  const randomBetween = (minimum, maximum) =>
+    minimum + Math.random() * (maximum - minimum);
+  const scene = document.querySelector(".ambient-scene");
+  const pageWidth = Math.max(scene.clientWidth, 1);
+  const pageHeight = Math.max(
+    document.documentElement.scrollHeight,
+    document.body.scrollHeight,
+    window.innerHeight,
+  );
+
+  document.querySelectorAll(".ambient-field").forEach((field) => {
+    const fieldWidth = field.offsetWidth;
+    const fieldHeight = field.offsetHeight;
+    const horizontalSpace = Math.max(pageWidth - fieldWidth, 0);
+    const verticalSpace = Math.max(pageHeight - fieldHeight, 0);
+    const startX = randomBetween(0, horizontalSpace);
+    const startY = randomBetween(0, verticalSpace);
+    const endX = randomBetween(0, horizontalSpace);
+    const endY = randomBetween(0, verticalSpace);
+
+    field.style.left = `${startX.toFixed(1)}px`;
+    field.style.top = `${startY.toFixed(1)}px`;
+    field.style.right = "auto";
+    field.style.bottom = "auto";
+    field.style.setProperty("--ambient-x", `${(endX - startX).toFixed(1)}px`);
+    field.style.setProperty("--ambient-y", `${(endY - startY).toFixed(1)}px`);
+    field.style.setProperty(
+      "--ambient-opacity",
+      randomBetween(0.72, 0.92).toFixed(2),
+    );
+    field.style.animationDuration = `${randomBetween(22, 42).toFixed(2)}s`;
+    field.style.animationDelay = `-${randomBetween(0, 18).toFixed(2)}s`;
+  });
+}
+
 function os(a) {
   const n = a.name.toLowerCase();
   return (
@@ -509,7 +573,9 @@ async function load() {
 </a>`,
       )
       .join("")}</div>`;
-    document.querySelector("#nav-version").textContent = latest.tag_name;
+    document.querySelector("#nav-version")?.replaceChildren(latest.tag_name);
+    observeReveals(out);
+    requestAnimationFrame(randomizeAmbient);
   } catch (e) {
     st.textContent = "could not load releases";
     st.className = "release-status error";
@@ -532,8 +598,13 @@ function render() {
   if (route === "docs") root.innerHTML = docsPage(bits[1] || "getting-started");
   else if (route === "downloads") {
     root.innerHTML = downloads();
+    observeReveals(root);
     load();
-  } else root.innerHTML = home();
+  } else {
+    root.innerHTML = home();
+    observeReveals(root);
+  }
+  requestAnimationFrame(randomizeAmbient);
   window.scrollTo(0, 0);
   document.querySelector(".main-nav").classList.remove("open");
 }
@@ -551,7 +622,14 @@ document.querySelector("#menu-button").addEventListener("click", (e) => {
   const n = document.querySelector(".main-nav"),
     open = n.classList.toggle("open");
   e.currentTarget.setAttribute("aria-expanded", open);
+  e.currentTarget.setAttribute(
+    "aria-label",
+    open ? "Close navigation" : "Open navigation",
+  );
 });
 
 window.addEventListener("hashchange", render);
+window.addEventListener("resize", () =>
+  requestAnimationFrame(randomizeAmbient),
+);
 render();
